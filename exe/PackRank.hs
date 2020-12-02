@@ -7,7 +7,7 @@ import Control.Monad (forM_)
 import Data.Binary (decodeFileOrFail, encodeFile)
 import Data.Char (isSpace)
 import Data.List (group, sort, stripPrefix)
-import Data.Maybe (catMaybes)
+import Data.Maybe (mapMaybe)
 import Distribution.PackDeps (Reverses, getReverses)
 import Distribution.PackDeps.Lens
 import Distribution.PackRank
@@ -90,14 +90,17 @@ findIndices = do
       repoCache    = case lookupInConfig "remote-repo-cache" cfg of
           []        -> c </> "packages"  -- Default
           (rrc : _) -> rrc               -- User-specified
-      tarName repo = repoCache </> repo </> "00-index.tar"
+      tarName repo = repoCache </> repo </> "timestamp.json"
   return (map tarName repos)
 
 reposFromConfig :: String -> [String]
-reposFromConfig = map (takeWhile (/= ':')) . lookupInConfig "remote-repo"
+reposFromConfig = map (takeWhile (/= ':')) . findRepo
+
+findRepo :: String -> [String]
+findRepo = map trim . mapMaybe (stripPrefix "repository") . lines
 
 lookupInConfig :: String -> String -> [String]
-lookupInConfig key = map trim . catMaybes . map (stripPrefix prefix) . lines
+lookupInConfig key = map trim . mapMaybe (stripPrefix prefix) . lines
   where
     prefix = key ++ ":"
 
