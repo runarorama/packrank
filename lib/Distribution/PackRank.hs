@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE BangPatterns, DeriveGeneric, FlexibleContexts,
     GeneralizedNewtypeDeriving, RecordWildCards, ScopedTypeVariables #-}
 
@@ -51,8 +52,8 @@ type Silent = U.Vector Int
 type DepFactors = U.Vector Double
 
 data Index = Index {
-    forwardIdx :: Map String Int
-  , reverseIdx :: V.Vector String
+    forwardIdx :: Map PackageName Int
+  , reverseIdx :: V.Vector PackageName
   } deriving (Eq, Read, Show, Generic)
 
 instance Binary Index
@@ -79,8 +80,8 @@ depending Index{..} = Depending . V.fromList . IntMap.elems .
       let deps = pi ^.. dependsOn . to (flip Map.lookup forwardIdx)
       in IntMap.insert (forwardIdx Map.! name) (G.fromList (catMaybes deps)) im
 
-dependsOn :: Fold PackInfo String
-dependsOn = piDesc . folded . diDeps . folded . depName . packageName
+dependsOn :: Fold PackInfo PackageName
+dependsOn = piDesc . folded . diDeps . folded . depName
 
 transpose :: Depending -> (Depended, DepFactors, Silent)
 transpose (Depending dep) = (Depended deps, factors, silent)

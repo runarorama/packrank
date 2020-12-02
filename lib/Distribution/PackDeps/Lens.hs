@@ -9,14 +9,18 @@ module Distribution.PackDeps.Lens
     , P.DescInfo
     , diHaystack
     , diDeps
+    , diLibDeps
     , diPackage
+    , diRevision
     , diSynopsis
     , P.Newest
     , P.loadNewest
     , Dependency
     , depName
     , depRange
-    , PackageName(..)
+    , PackageName
+    , unPackageName
+    , mkPackageName
     , packageName
     ) where
 
@@ -30,12 +34,12 @@ makeLenses ''P.PackInfo
 makeLenses ''P.DescInfo
 
 depName :: Lens' Dependency PackageName
-depName = lens (\(Dependency n _) -> n)
-               (\(Dependency _ r) n -> (Dependency n r))
+depName =
+  lens (\(Dependency n _ _) -> n) (\(Dependency _ r ls) n -> Dependency n r ls)
 
 depRange :: Lens' Dependency VersionRange
-depRange = lens (\(Dependency _ r) -> r)
-                (\(Dependency n _) r -> (Dependency n r))
+depRange =
+  lens (\(Dependency _ r _) -> r) (\(Dependency n _ ls) r -> Dependency n r ls)
 
 packageName :: Iso' PackageName String
-packageName = iso (\(PackageName n) -> n) PackageName
+packageName = iso unPackageName mkPackageName

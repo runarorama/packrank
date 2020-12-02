@@ -1,8 +1,7 @@
-{-# LANGUAGE BangPatterns, ScopedTypeVariables, TupleSections #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main (main) where
 
-import Control.Applicative ((<$>))
 import Control.Exception (try)
 import Control.Monad (forM_)
 import Data.Binary (decodeFileOrFail, encodeFile)
@@ -10,7 +9,7 @@ import Data.Char (isSpace)
 import Data.List (group, sort, stripPrefix)
 import Data.Maybe (catMaybes)
 import Distribution.PackDeps (Reverses, getReverses)
-import Distribution.PackDeps.Lens (Newest, loadNewest)
+import Distribution.PackDeps.Lens
 import Distribution.PackRank
 import System.Directory (getAppUserDataDirectory, getModificationTime)
 import System.Environment (getArgs)
@@ -28,16 +27,16 @@ main = do
   case args of
     [] -> dump idx (prVector s)
     _  -> do
-      n <- maybe (status "loading newest" >> loadNewest) return mn
+      n <- maybe (status "loading newest" >> loadNewest True) return mn
       let r = getReverses n
       forM_ args $ \a -> do
         let xs = sort [(prVector s U.! (forwardIdx idx Map.! tr), tr) |
-                       tr <- transitiveReverses a r]
+                       tr <- transitiveReverses (mkPackageName a) r]
             k = 10000 / fst (last xs)
-        forM_ (map head . group $ xs) $ \(r,n) ->
-          putStrLn . unwords $ [n,show (round (r*k)::Int)]
+        forM_ (map head . group $ xs) $ \(r',n') ->
+          putStrLn . unwords $ [unPackageName n', show (round (r'*k)::Int)]
 
-transitiveReverses :: String -> Reverses -> [String]
+transitiveReverses :: PackageName -> Reverses -> [PackageName]
 transitiveReverses name = maybe [] (map fst . snd) . Map.lookup name
 
 dump :: Index -> U.Vector Double -> IO ()
@@ -47,7 +46,7 @@ dump idx s = do
   tt <- G.freeze ss :: IO (U.Vector (Double,Int))
   let k = 10000 / fst (G.last tt)
   G.forM_ tt $ \(r,i) ->
-    putStrLn . unwords $ [reverseIdx idx G.! i, show (round (r*k)::Int)]
+    putStrLn . unwords $ [unPackageName $ reverseIdx idx G.! i, show (round (r*k)::Int)]
 
 getRanks :: IO (Maybe Newest, Index, PackRank)
 getRanks = maybe computeRanks return =<< loadRanks
@@ -65,7 +64,7 @@ loadRanks = do
 computeRanks :: IO (Maybe Newest, Index, PackRank)
 computeRanks = do
   status "loading newest"
-  n <- loadNewest
+  n <- loadNewest True
   status $ show (Map.size n) ++ " packages"
   let idx = makeIndex n
       dep = depending idx n
